@@ -5,7 +5,7 @@ import configparser as cp
 import re
 import requests
 from difflib import get_close_matches
-from stock import get_stock_price
+from cogs.stock import get_stock_price
 
 config_file = cp.ConfigParser()
 config_file.read("../envs/config.ini")
@@ -60,7 +60,12 @@ async def youbike(ctx, *, station_name: str):
                 # 找到完整的站點資料
                 station_info = next((station for station in youbike_data if station["sna"] == name), None)
                 if station_info:
-                    results.append(f"🚲 **{station_info['sna']}**: 可租借 {station_info.get('available_rent_bikes', '未知')} 台。")
+                    results.append(
+                            f"🚲 **{station_info['sna']}**\n"
+                            f"🔄 更新時間：{station_info.get('mday', '未知')}\n"
+                            f"🔓 可租借：{station_info.get('available_rent_bikes', '未知')} 台\n"
+                            f"🔒 可停空位：{station_info.get('available_return_bikes', '未知')} 台\n"
+                        )
             # 回傳匹配結果
             await ctx.send("\n".join(results))
         else:
