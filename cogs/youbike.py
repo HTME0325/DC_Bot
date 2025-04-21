@@ -1,9 +1,12 @@
 from discord.ext import commands
 from discord import Interaction, SelectOption, Embed
-from discord.ui import View, Select
+from discord.ui import View, Select, Button
+from discord import ButtonStyle
 import requests
 from difflib import get_close_matches
 from geopy.distance import geodesic
+from utils.youbike_helpers import fuzzy_find_matches, get_station_by_name
+
 
 
 YOUBIKE_API_URL = "https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json"
@@ -22,7 +25,7 @@ def fetch_ebike_info(station_no):
     except Exception as e:
         print(f"❌ 發生錯誤: {e}")
         return []
-
+    
 
 class StationSelect(Select):
     def __init__(self, stations, youbike_data):
@@ -112,6 +115,136 @@ class YouBike(commands.Cog):
 
         except Exception as e:
             await ctx.send(f"❌ 查詢失敗，錯誤訊息：{e}")
+
+
+    @commands.command()
+    async def commute(self, ctx, *, text: str):
+        """
+        通勤距離估算：格式 `地點A 到 地點B`，支援模糊比對與互動式選擇。
+        """
+        try:
+            if "到" not in text:
+                await ctx.send("⚠️ 請使用格式：`地點A 到 地點B`（中間要有「到」）")
+                return
+
+            from_input, to_input = [s.strip() for s in text.split("到")]
+
+            res = requests.get(YOUBIKE_API_URL)
+            if res.status_code != 200:
+                await ctx.send("❌ 無法取得資料")
+                return
+
+            station_data = res.json()
+            from_matches = fuzzy_find_matches(from_input, station_data)
+            to_matches = fuzzy_find_matches(to_input, station_data)
+
+            if not from_matches or not to_matches:
+                await ctx.send("❌ 找不到起點或終點，請確認名稱")
+                return
+
+            if len(from_matches) == 1 and len(to_matches) == 1:
+                # ✅ 直接顯示結果
+                from_station = get_station_by_name(from_matches[0], station_data)
+                to_station = get_station_by_name(to_matches[0], station_data)
+
+                from_coord = (float(from_station["latitude"]), float(from_station["longitude"]))
+                to_coord = (float(to_station["latitude"]), float(to_station["longitude"]))
+                distance_km = geodesic(from_coord, to_coord).km
+
+                embed = Embed(title="🚴 通勤估算（互動選擇）", color=0x03A9F4)
+                embed.add_field(name="📍 起點站", value=from_station["sna"], inline=False)
+                embed.add_field(name="🔓 可租車輛", value=f"{from_station.get('available_rent_bikes', '未知')} 台", inline=True)
+                embed.add_field(name="\u200b", value="\u200b", inline=False)
+                embed.add_field(name="🏁 終點站", value=to_station["sna"], inline=False)
+                embed.add_field(name="🔒 可停空位", value=f"{to_station.get('available_return_bikes', '未知')} 台", inline=True)
+                embed.add_field(name="\u200b", value="\u200b", inline=False)
+                embed.add_field(name="📏 直線距離", value=f"{distance_km:.2f} 公里", inline=False)
+                embed.set_footer(text="本距離為兩站直線距離，僅供參考")
+
+                google_maps_url = (
+                    f"https://www.google.com/maps/dir/?api=1"
+                    f"&origin={from_coord[0]},{from_coord[1]}"
+                    f"&destination={to_coord[0]},{to_coord[1]}"
+                    f"&travelmode=bicycling"
+                )
+                embed.add_field(name="🗺️ 地圖與路線", value=f"[在 Google Maps 上查看]({google_maps_url})", inline=False)
+
+                await ctx.send(embed=embed)
+            else:
+                # 🤖 多個結果，用互動選擇
+                view = CommuteSelectView(from_matches, to_matches, station_data)
+                await ctx.send("🔍 找到多個相似站點，請從下拉選單中選擇：", view=view)
+
+        except Exception as e:
+            await ctx.send(f"❌ 發生錯誤：{e}")
+
+
+class CommuteSelect(Select):
+    def __init__(self, role, options, station_data, parent_view):
+        self.role = role
+        self.station_data = station_data
+        self.parent_view = parent_view
+        select_options = [SelectOption(label=name, value=name) for name in options]
+        placeholder = "選擇起點" if role == "from" else "選擇終點"
+        super().__init__(placeholder=placeholder, min_values=1, max_values=1, options=select_options)
+
+    async def callback(self, interaction: Interaction):
+        selected_name = self.values[0]
+        station = get_station_by_name(selected_name, self.station_data)
+        if self.role == "from":
+            self.parent_view.from_station = station
+        else:
+            self.parent_view.to_station = station
+
+        await interaction.response.send_message(f"✅ 已選擇 {self.role}：{selected_name}，請繼續操作", ephemeral=True)
+
+class CommuteSelectView(View):
+    def __init__(self, from_options, to_options, station_data):
+        super().__init__(timeout=60)
+        self.station_data = station_data
+        self.from_station = None
+        self.to_station = None
+
+        self.from_select = CommuteSelect("from", from_options, station_data, self)
+        self.to_select = CommuteSelect("to", to_options, station_data, self)
+        self.add_item(self.from_select)
+        self.add_item(self.to_select)
+
+        self.submit_button = Button(label="送出", style=ButtonStyle.primary)
+        self.submit_button.callback = self.on_submit
+        self.add_item(self.submit_button)
+
+    async def on_submit(self, interaction: Interaction):
+        if not self.from_station or not self.to_station:
+            await interaction.response.send_message("⚠️ 請確認已選擇起點與終點", ephemeral=True)
+            return
+
+        try:
+            from_coord = (float(self.from_station["latitude"]), float(self.from_station["longitude"]))
+            to_coord = (float(self.to_station["latitude"]), float(self.to_station["longitude"]))
+            distance_km = geodesic(from_coord, to_coord).km
+
+            embed = Embed(title="🚴 通勤估算（互動選擇）", color=0x03A9F4)
+            embed.add_field(name="📍 起點站", value=self.from_station["sna"], inline=False)
+            embed.add_field(name="🔓 可租車輛", value=f"{self.from_station.get('available_rent_bikes', '未知')} 台", inline=True)
+            embed.add_field(name="\u200b", value="\u200b", inline=False)
+            embed.add_field(name="🏁 終點站", value=self.to_station["sna"], inline=False)
+            embed.add_field(name="🔒 可停空位", value=f"{self.to_station.get('available_return_bikes', '未知')} 台", inline=True)
+            embed.add_field(name="\u200b", value="\u200b", inline=False)
+            embed.add_field(name="📏 直線距離", value=f"{distance_km:.2f} 公里", inline=False)
+            embed.set_footer(text="本距離為兩站直線距離，僅供參考")
+
+            google_maps_url = (
+                f"https://www.google.com/maps/dir/?api=1"
+                f"&origin={from_coord[0]},{from_coord[1]}"
+                f"&destination={to_coord[0]},{to_coord[1]}"
+                f"&travelmode=bicycling"
+            )
+            embed.add_field(name="🗺️ 地圖與路線", value=f"[在 Google Maps 上查看]({google_maps_url})", inline=False)
+
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 計算錯誤：{e}", ephemeral=True)
 
 
 # Cog 的入口
