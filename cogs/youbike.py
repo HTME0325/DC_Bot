@@ -5,7 +5,8 @@ from discord import ButtonStyle
 import requests
 from difflib import get_close_matches
 from geopy.distance import geodesic
-from utils.youbike_helpers import fuzzy_find_matches, get_station_by_name
+from utils.youbike_utils import fuzzy_find_matches, get_station_by_name
+from utils.get_route_info import get_route_info
 
 
 
@@ -149,17 +150,21 @@ class YouBike(commands.Cog):
 
                 from_coord = (float(from_station["latitude"]), float(from_station["longitude"]))
                 to_coord = (float(to_station["latitude"]), float(to_station["longitude"]))
-                distance_km = geodesic(from_coord, to_coord).km
+                route_distance_km, route_duration_min = get_route_info(from_coord, to_coord)
 
-                embed = Embed(title="🚴 通勤估算（互動選擇）", color=0x03A9F4)
+                # distance_km = geodesic(from_coord, to_coord).km
+
+                embed = Embed(title="🚴 通勤估算", color=0x03A9F4)
                 embed.add_field(name="📍 起點站", value=from_station["sna"], inline=False)
                 embed.add_field(name="🔓 可租車輛", value=f"{from_station.get('available_rent_bikes', '未知')} 台", inline=True)
                 embed.add_field(name="\u200b", value="\u200b", inline=False)
                 embed.add_field(name="🏁 終點站", value=to_station["sna"], inline=False)
                 embed.add_field(name="🔒 可停空位", value=f"{to_station.get('available_return_bikes', '未知')} 台", inline=True)
                 embed.add_field(name="\u200b", value="\u200b", inline=False)
-                embed.add_field(name="📏 直線距離", value=f"{distance_km:.2f} 公里", inline=False)
-                embed.set_footer(text="本距離為兩站直線距離，僅供參考")
+                # embed.add_field(name="📏 直線距離", value=f"{distance_km:.2f} 公里", inline=False)
+                embed.add_field(name="🛣️ 實際路徑距離", value=f"{route_distance_km:.2f} 公里", inline=False)
+                embed.add_field(name="⏱️ 預估時間", value=f"{route_duration_min:.1f} 分鐘", inline=False)
+                embed.add_field(name="\u200b", value="\u200b", inline=False)
 
                 google_maps_url = (
                     f"https://www.google.com/maps/dir/?api=1"
@@ -222,17 +227,21 @@ class CommuteSelectView(View):
         try:
             from_coord = (float(self.from_station["latitude"]), float(self.from_station["longitude"]))
             to_coord = (float(self.to_station["latitude"]), float(self.to_station["longitude"]))
-            distance_km = geodesic(from_coord, to_coord).km
 
-            embed = Embed(title="🚴 通勤估算（互動選擇）", color=0x03A9F4)
+            route_distance_km, route_duration_min = get_route_info(from_coord, to_coord)
+            # distance_km = geodesic(from_coord, to_coord).km
+
+            embed = Embed(title="🚴 通勤估算", color=0x03A9F4)
             embed.add_field(name="📍 起點站", value=self.from_station["sna"], inline=False)
             embed.add_field(name="🔓 可租車輛", value=f"{self.from_station.get('available_rent_bikes', '未知')} 台", inline=True)
             embed.add_field(name="\u200b", value="\u200b", inline=False)
             embed.add_field(name="🏁 終點站", value=self.to_station["sna"], inline=False)
             embed.add_field(name="🔒 可停空位", value=f"{self.to_station.get('available_return_bikes', '未知')} 台", inline=True)
             embed.add_field(name="\u200b", value="\u200b", inline=False)
-            embed.add_field(name="📏 直線距離", value=f"{distance_km:.2f} 公里", inline=False)
-            embed.set_footer(text="本距離為兩站直線距離，僅供參考")
+            # embed.add_field(name="📏 直線距離", value=f"{distance_km:.2f} 公里", inline=False)
+            embed.add_field(name="🛣️ 實際路徑距離", value=f"{route_distance_km:.2f} 公里", inline=False)
+            embed.add_field(name="⏱️ 預估時間", value=f"{route_duration_min:.1f} 分鐘", inline=False)
+            embed.add_field(name="\u200b", value="\u200b", inline=False)
 
             google_maps_url = (
                 f"https://www.google.com/maps/dir/?api=1"
