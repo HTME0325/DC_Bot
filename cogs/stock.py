@@ -30,7 +30,7 @@ class Stock(commands.Cog):
             soup = BeautifulSoup(response.text, 'html.parser')
 
             # 定位股價元素
-            price_span = soup.find('span', class_="Fz(32px) Fw(b) Lh(1) Mend(16px) D(f) Ai(c) C($c-trend-down)")
+            price_span = soup.find('span',  class_=lambda c: c and 'Fz(32px)' in c and 'Fw(b)' in c and 'Lh(1)' in c)
             
             if price_span:
                 stock_price = price_span.text
