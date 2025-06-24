@@ -10,7 +10,7 @@ class Stock(commands.Cog):
     @commands.command()
     async def stock(self, ctx, *, stock_symbol: str):
         """
-        從 Yahoo 股票頁面提取指定股票的股價。
+        從 Yahoo 股票頁面提取指定股票的股價。使用範例：Jarvis stock 2330.TW
         
         :param stock_symbol: 股票代碼（例如 "2330.TW"）
         :return: 股票名稱與股價，若失敗則返回錯誤訊息

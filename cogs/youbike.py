@@ -151,6 +151,12 @@ class YouBike(commands.Cog):
                 from_coord = (float(from_station["latitude"]), float(from_station["longitude"]))
                 to_coord = (float(to_station["latitude"]), float(to_station["longitude"]))
                 route_distance_km, route_duration_min = get_route_info(from_coord, to_coord)
+                google_maps_url = (
+                    f"https://www.google.com/maps/dir/?api=1"
+                    f"&origin={from_coord[0]},{from_coord[1]}"
+                    f"&destination={to_coord[0]},{to_coord[1]}"
+                    f"&travelmode=bicycling"
+                )
 
                 # distance_km = geodesic(from_coord, to_coord).km
 
@@ -161,18 +167,13 @@ class YouBike(commands.Cog):
                 embed.add_field(name="🏁 終點站", value=to_station["sna"], inline=False)
                 embed.add_field(name="🔒 可停空位", value=f"{to_station.get('available_return_bikes', '未知')} 台", inline=True)
                 embed.add_field(name="\u200b", value="\u200b", inline=False)
+                embed.add_field(name="🗺️ 地圖與路線", value=f"[在 Google Maps 上查看]({google_maps_url})", inline=False)
                 # embed.add_field(name="📏 直線距離", value=f"{distance_km:.2f} 公里", inline=False)
+                embed.add_field(name="\u200b", value="\u200b", inline=False)
                 embed.add_field(name="🛣️ 實際路徑距離", value=f"{route_distance_km:.2f} 公里", inline=False)
                 embed.add_field(name="⏱️ 預估時間", value=f"{route_duration_min:.1f} 分鐘", inline=False)
-                embed.add_field(name="\u200b", value="\u200b", inline=False)
+                embed.add_field(name="📎 資料來源", value="路線預估由 [OpenRouteService](https://openrouteservice.org) 提供", inline=False)
 
-                google_maps_url = (
-                    f"https://www.google.com/maps/dir/?api=1"
-                    f"&origin={from_coord[0]},{from_coord[1]}"
-                    f"&destination={to_coord[0]},{to_coord[1]}"
-                    f"&travelmode=bicycling"
-                )
-                embed.add_field(name="🗺️ 地圖與路線", value=f"[在 Google Maps 上查看]({google_maps_url})", inline=False)
 
                 await ctx.send(embed=embed)
             else:
@@ -229,6 +230,12 @@ class CommuteSelectView(View):
             to_coord = (float(self.to_station["latitude"]), float(self.to_station["longitude"]))
 
             route_distance_km, route_duration_min = get_route_info(from_coord, to_coord)
+            google_maps_url = (
+                f"https://www.google.com/maps/dir/?api=1"
+                f"&origin={from_coord[0]},{from_coord[1]}"
+                f"&destination={to_coord[0]},{to_coord[1]}"
+                f"&travelmode=bicycling"
+            )
             # distance_km = geodesic(from_coord, to_coord).km
 
             embed = Embed(title="🚴 通勤估算", color=0x03A9F4)
@@ -238,18 +245,13 @@ class CommuteSelectView(View):
             embed.add_field(name="🏁 終點站", value=self.to_station["sna"], inline=False)
             embed.add_field(name="🔒 可停空位", value=f"{self.to_station.get('available_return_bikes', '未知')} 台", inline=True)
             embed.add_field(name="\u200b", value="\u200b", inline=False)
+            embed.add_field(name="🗺️ 地圖與路線", value=f"[在 Google Maps 上查看]({google_maps_url})", inline=False)
             # embed.add_field(name="📏 直線距離", value=f"{distance_km:.2f} 公里", inline=False)
+            embed.add_field(name="\u200b", value="\u200b", inline=False)
             embed.add_field(name="🛣️ 實際路徑距離", value=f"{route_distance_km:.2f} 公里", inline=False)
             embed.add_field(name="⏱️ 預估時間", value=f"{route_duration_min:.1f} 分鐘", inline=False)
-            embed.add_field(name="\u200b", value="\u200b", inline=False)
+            embed.add_field(name="📎 資料來源", value="路線預估由 [OpenRouteService](https://openrouteservice.org) 提供", inline=False)
 
-            google_maps_url = (
-                f"https://www.google.com/maps/dir/?api=1"
-                f"&origin={from_coord[0]},{from_coord[1]}"
-                f"&destination={to_coord[0]},{to_coord[1]}"
-                f"&travelmode=bicycling"
-            )
-            embed.add_field(name="🗺️ 地圖與路線", value=f"[在 Google Maps 上查看]({google_maps_url})", inline=False)
 
             await interaction.response.send_message(embed=embed, ephemeral=True)
         except Exception as e:

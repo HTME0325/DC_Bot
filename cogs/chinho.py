@@ -1,7 +1,6 @@
 from discord.ext import commands
 import requests
-import discord
-import math
+
 
 PRODUCTS_PER_PAGE = 4
 
@@ -11,6 +10,9 @@ class Menu(commands.Cog):
 
     @commands.command(name='菜單')
     async def fetch_menu(self, ctx):
+        """
+        查詢 金厚雞蛋糕今日菜單，使用範例：Jarvis 菜單
+        """
         try:
             res = requests.get('http://localhost:5000/api/products/active')
             res.raise_for_status()  # 拋出錯誤才會進 except
@@ -42,6 +44,9 @@ class Order(commands.Cog):
 
     @commands.command(name="點餐")
     async def order(self, ctx):
+        """
+        向 金厚雞蛋糕點餐，使用範例：Jarvis 點餐，依步驟點餐即可，會需要輸入電話號碼
+        """
         try:
             res = requests.get("http://localhost:5000/api/products/active")
             res.raise_for_status()
