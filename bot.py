@@ -1,10 +1,10 @@
 import discord
 from discord.ext import commands
-import configparser as cp
+from dotenv import load_dotenv
 import os
 
-config_file = cp.ConfigParser()
-config_file.read("envs/config.ini")
+load_dotenv()
+
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -25,4 +25,4 @@ bot = MyBot(command_prefix='Jarvis ', intents=intents)
 async def on_ready():
     print(f"目前登入身份 --> {bot.user}")
 
-bot.run(config_file["DC"]["token"])
+bot.run(os.getenv("DC_token"))

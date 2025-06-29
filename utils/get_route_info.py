@@ -1,10 +1,9 @@
 import requests
-import configparser as cp
+import os
+from dotenv import load_dotenv
 
-config_file = cp.ConfigParser()
-config_file.read("envs/config.ini")
-
-ORS_API_KEY = config_file["ORS"]["ORS_key"] 
+load_dotenv()
+ORS_API_KEY = os.getenv("ORS_key")
 
 def get_route_info(from_coord, to_coord):
     """

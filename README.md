@@ -25,12 +25,11 @@ pip install -r requirements.txt
 ```
 
 
-### 2. 建立envs/config.ini
+### 2. 建立.env
 建立範例：
-[DC]
-token = "your token"
 
-[ORS]
+DC_token = "your token"
+
 ORS_key = "your API key"
 
 請先到discord申請自己的token https://discord.com/developers/docs/reference
