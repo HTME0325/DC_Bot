@@ -1,5 +1,4 @@
 import os
-import discord
 from discord.ext import commands
 import google.generativeai as genai
 from dotenv import load_dotenv
